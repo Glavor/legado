@@ -14,7 +14,6 @@ import io.legado.app.model.analyzeRule.AnalyzeRule
 import io.legado.app.model.analyzeRule.AnalyzeUrl
 import io.legado.app.utils.HtmlFormatter
 import io.legado.app.utils.NetworkUtils
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.async
 import kotlinx.coroutines.ensureActive
@@ -92,7 +91,8 @@ object BookContent {
                 res.body?.let { nextBody ->
                     contentData = analyzeContent(
                         book, nextUrl, res.url, nextBody, contentRule,
-                        bookChapter, bookSource, mNextChapterUrl, false
+                        bookChapter, bookSource, mNextChapterUrl,
+                        printLog = false
                     )
                     nextUrl =
                         if (contentData.second.isNotEmpty()) contentData.second[0] else ""
@@ -104,11 +104,8 @@ object BookContent {
         } else if (contentData.second.size > 1) {
             Debug.log(bookSource.bookSourceUrl, "◇并发解析正文,总页数:${contentData.second.size}")
             withContext(IO) {
-                //页数太多并行访问有问题,这里判断下页数,超过5页就不并行访问
-                val asyncStart =
-                    if (contentData.second.size > 5) CoroutineStart.LAZY else CoroutineStart.DEFAULT
                 val asyncArray = Array(contentData.second.size) {
-                    async(IO, start = asyncStart) {
+                    async(IO) {
                         val urlStr = contentData.second[it]
                         val res = AnalyzeUrl(
                             mUrl = urlStr,
@@ -118,7 +115,9 @@ object BookContent {
                         ).getStrResponseAwait() //控制并发访问
                         analyzeContent(
                             book, urlStr, res.url, res.body!!, contentRule,
-                            bookChapter, bookSource, mNextChapterUrl, false
+                            bookChapter, bookSource, mNextChapterUrl,
+                            getNextPageUrl = false,
+                            printLog = false
                         ).first
                     }
                 }
@@ -157,6 +156,7 @@ object BookContent {
         chapter: BookChapter,
         bookSource: BookSource,
         nextChapterUrl: String?,
+        getNextPageUrl: Boolean = true,
         printLog: Boolean = true
     ): Pair<String, List<String>> {
         val analyzeRule = AnalyzeRule(book, bookSource)
@@ -169,13 +169,15 @@ object BookContent {
         var content = analyzeRule.getString(contentRule.content, unescape = false)
         content = HtmlFormatter.formatKeepImg(content, rUrl)
         //获取下一页链接
-        val nextUrlRule = contentRule.nextContentUrl
-        if (!nextUrlRule.isNullOrEmpty()) {
-            Debug.log(bookSource.bookSourceUrl, "┌获取正文下一页链接", printLog)
-            analyzeRule.getStringList(nextUrlRule, isUrl = true)?.let {
-                nextUrlList.addAll(it)
+        if (getNextPageUrl) {
+            val nextUrlRule = contentRule.nextContentUrl
+            if (!nextUrlRule.isNullOrEmpty()) {
+                Debug.log(bookSource.bookSourceUrl, "┌获取正文下一页链接", printLog)
+                analyzeRule.getStringList(nextUrlRule, isUrl = true)?.let {
+                    nextUrlList.addAll(it)
+                }
+                Debug.log(bookSource.bookSourceUrl, "└" + nextUrlList.joinToString("，"), printLog)
             }
-            Debug.log(bookSource.bookSourceUrl, "└" + nextUrlList.joinToString("，"), printLog)
         }
         return Pair(content, nextUrlList)
     }
