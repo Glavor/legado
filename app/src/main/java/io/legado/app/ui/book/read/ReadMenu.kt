@@ -11,7 +11,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View.OnClickListener
 import android.view.View.OnLongClickListener
-import android.view.WindowManager
+import android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
 import android.view.animation.Animation
 import android.widget.FrameLayout
 import android.widget.SeekBar
@@ -19,7 +19,6 @@ import androidx.appcompat.widget.PopupMenu
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import io.legado.app.R
-import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
 import io.legado.app.databinding.ViewReadMenuBinding
 import io.legado.app.help.IntentData
@@ -248,26 +247,23 @@ class ReadMenu @JvmOverloads constructor(
             binding.ivBrightnessAuto.setColorFilter(context.buttonDisabledColor)
             binding.seekBrightness.isEnabled = true
         }
-        setScreenBrightness(AppConfig.readBrightness)
+        setScreenBrightness(AppConfig.readBrightness.toFloat())
     }
 
     /**
      * 设置屏幕亮度
      */
-    private fun setScreenBrightness(value: Int) {
+    fun setScreenBrightness(value: Float) {
         activity?.run {
-            var brightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-            if (!brightnessAuto()) {
-                brightness = value.toFloat()
+            var brightness = BRIGHTNESS_OVERRIDE_NONE
+            if (!brightnessAuto() && value != BRIGHTNESS_OVERRIDE_NONE) {
+                brightness = value
                 if (brightness < 1f) brightness = 1f
                 brightness /= 255f
             }
             val params = window.attributes
             params.screenBrightness = brightness
             window.attributes = params
-            if (AppConfig.recordLog) {
-                AppLog.put("设置亮度$brightness")
-            }
         }
     }
 
@@ -364,7 +360,7 @@ class ReadMenu @JvmOverloads constructor(
 
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
-                    setScreenBrightness(progress)
+                    setScreenBrightness(progress.toFloat())
                 }
             }
 
