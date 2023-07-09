@@ -112,10 +112,8 @@ class AudioPlayService : BaseService(),
                 .submit()
                 .get()
         }.onSuccess {
-            val tmpCover = cover
             cover = it
             upNotification()
-            tmpCover.recycle()
         }
     }
 
@@ -157,7 +155,6 @@ class AudioPlayService : BaseService(),
         upMediaSessionPlaybackState(PlaybackStateCompat.STATE_STOPPED)
         AudioPlay.status = Status.STOP
         postEvent(EventBus.AUDIO_STATE, Status.STOP)
-        cover.recycle()
     }
 
     /**
@@ -392,9 +389,7 @@ class AudioPlayService : BaseService(),
                     WebBook.getContent(this@AudioPlayService, bookSource, book, chapter)
                         .onSuccess { content ->
                             if (content.isEmpty()) {
-                                withContext(Main) {
-                                    toastOnUi("未获取到资源链接")
-                                }
+                                toastOnUi("未获取到资源链接")
                             } else {
                                 contentLoadFinish(chapter, content)
                             }
