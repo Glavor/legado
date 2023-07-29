@@ -1,12 +1,17 @@
 package io.legado.app.utils
 
+import androidx.annotation.Keep
 import java.net.URL
 import java.net.URLDecoder
 
+@Keep
 @Suppress("MemberVisibilityCanBePrivate")
 class JsURL(url: String, baseUrl: String? = null) {
 
     val searchParams: Map<String, String>?
+    val host: String
+    val origin: String
+    val pathname: String
 
     init {
         val mUrl = if (!baseUrl.isNullOrEmpty()) {
@@ -15,8 +20,15 @@ class JsURL(url: String, baseUrl: String? = null) {
         } else {
             URL(url)
         }
+        host = mUrl.host
+        origin = if (mUrl.port > 0) {
+            "${mUrl.protocol}://$host:${mUrl}:${mUrl.port}"
+        } else {
+            "${mUrl.protocol}://$host:${mUrl}"
+        }
+        pathname = mUrl.path
         val query = mUrl.query
-        searchParams = query?.let { query ->
+        searchParams = query?.let { _ ->
             val map = hashMapOf<String, String>()
             query.split("&").forEach {
                 val x = it.split("=")
