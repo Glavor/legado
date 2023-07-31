@@ -9,6 +9,19 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface BookDao {
 
+    fun flowByGroup(groupId: Long): Flow<List<Book>> {
+        return when (groupId) {
+            BookGroup.IdRoot -> flowRoot()
+            BookGroup.IdAll -> flowAll()
+            BookGroup.IdLocal -> flowLocal()
+            BookGroup.IdAudio -> flowAudio()
+            BookGroup.IdNetNone -> flowNetNoGroup()
+            BookGroup.IdLocalNone -> flowLocalNoGroup()
+            BookGroup.IdError -> flowUpdateError()
+            else -> flowByUserGroup(groupId)
+        }
+    }
+
     @Query(
         """
         select * from books where type & ${BookType.text} > 0
@@ -45,7 +58,7 @@ interface BookDao {
     fun flowLocalNoGroup(): Flow<List<Book>>
 
     @Query("SELECT * FROM books WHERE (`group` & :group) > 0")
-    fun flowByGroup(group: Long): Flow<List<Book>>
+    fun flowByUserGroup(group: Long): Flow<List<Book>>
 
     @Query("SELECT * FROM books WHERE name like '%'||:key||'%' or author like '%'||:key||'%'")
     fun flowSearch(key: String): Flow<List<Book>>
