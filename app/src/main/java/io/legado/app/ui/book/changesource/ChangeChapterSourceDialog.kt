@@ -45,10 +45,8 @@ import io.legado.app.utils.startActivity
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import io.legado.app.utils.visible
-import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.conflate
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 
 
@@ -90,7 +88,7 @@ class ChangeChapterSourceDialog() : BaseDialogFragment(R.layout.dialog_chapter_c
         if (it) {
             val searchGroup = AppConfig.searchGroup
             if (searchGroup.isNotEmpty()) {
-                launch {
+                lifecycleScope.launch {
                     alert("搜索结果为空") {
                         setMessage("${searchGroup}分组搜索结果为空,是否切换到全部分组")
                         noButton()
@@ -234,8 +232,8 @@ class ChangeChapterSourceDialog() : BaseDialogFragment(R.layout.dialog_chapter_c
                 }
             }
         }
-        launch {
-            appDb.bookSourceDao.flowEnabledGroups().flowOn(IO).conflate().collect {
+        lifecycleScope.launch {
+            appDb.bookSourceDao.flowEnabledGroups().conflate().collect {
                 groups.clear()
                 groups.addAll(it)
                 upGroupMenu()
