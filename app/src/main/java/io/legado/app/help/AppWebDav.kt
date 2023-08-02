@@ -31,6 +31,7 @@ object AppWebDav {
     private const val defaultWebDavUrl = "https://dav.jianguoyun.com/dav/"
     private val bookProgressUrl get() = "${rootWebDavUrl}bookProgress/"
     private val exportsWebDavUrl get() = "${rootWebDavUrl}books/"
+    private val bgWebDavUrl get() = "${rootWebDavUrl}background/"
 
     var authorization: Authorization? = null
         private set
@@ -156,7 +157,21 @@ object AppWebDav {
         }
     }
 
-    @Suppress("unused")
+    /**
+     * 获取云端所有背景名称
+     */
+    suspend fun getAllBgNames(): Result<List<WebDavFile>> {
+        return kotlin.runCatching {
+            if (!NetworkUtils.isAvailable())
+                throw NoStackTraceException("网络未连接")
+            authorization.let {
+                it ?: throw NoStackTraceException("webDav未配置")
+                WebDav(bgWebDavUrl, it).listFiles()
+            }
+        }
+    }
+
+
     suspend fun exportWebDav(byteArray: ByteArray, fileName: String) {
         if (!NetworkUtils.isAvailable()) return
         try {
@@ -196,21 +211,23 @@ object AppWebDav {
             val json = GSON.toJson(bookProgress)
             val url = getProgressUrl(book.name, book.author)
             WebDav(url, authorization).upload(json.toByteArray(), "application/json")
+            book.syncTime = System.currentTimeMillis()
         }.onError {
             AppLog.put("上传进度失败\n${it.localizedMessage}", it)
         }
     }
 
-    fun uploadBookProgress(bookProgress: BookProgress) {
-        val authorization = authorization ?: return
-        if (!AppConfig.syncBookProgress) return
-        if (!NetworkUtils.isAvailable()) return
-        Coroutine.async {
+    suspend fun uploadBookProgress(bookProgress: BookProgress, onSuccess: (() -> Unit)? = null) {
+        try {
+            val authorization = authorization ?: return
+            if (!AppConfig.syncBookProgress) return
+            if (!NetworkUtils.isAvailable()) return
             val json = GSON.toJson(bookProgress)
             val url = getProgressUrl(bookProgress.name, bookProgress.author)
             WebDav(url, authorization).upload(json.toByteArray(), "application/json")
-        }.onError {
-            AppLog.put("上传进度失败\n${it.localizedMessage}", it)
+            onSuccess?.invoke()
+        } catch (e: Exception) {
+            AppLog.put("上传进度失败\n${e.localizedMessage}", e)
         }
     }
 
@@ -245,12 +262,19 @@ object AppWebDav {
     suspend fun downloadAllBookProgress() {
         val authorization = authorization ?: return
         if (!NetworkUtils.isAvailable()) return
-        val bookProgressFiles = WebDav(bookProgressUrl, authorization).listFiles().map {
-            it.displayName
-        }.toHashSet()
+        val bookProgressFiles = WebDav(bookProgressUrl, authorization).listFiles()
+        val map = hashMapOf<String, WebDavFile>()
+        bookProgressFiles.forEach {
+            map[it.displayName] = it
+        }
         appDb.bookDao.all.forEach { book ->
             val progressFileName = getProgressFileName(book.name, book.author)
-            if (!bookProgressFiles.contains(progressFileName)) return@forEach
+            val webDavFile = map[progressFileName]
+            webDavFile ?: return
+            if (webDavFile.lastModify <= book.syncTime) {
+                //本地同步时间大于上传时间不用同步
+                return
+            }
             getBookProgress(book)?.let { bookProgress ->
                 if (bookProgress.durChapterIndex > book.durChapterIndex
                     || (bookProgress.durChapterIndex == book.durChapterIndex
@@ -260,6 +284,7 @@ object AppWebDav {
                     book.durChapterPos = bookProgress.durChapterPos
                     book.durChapterTitle = bookProgress.durChapterTitle
                     book.durChapterTime = bookProgress.durChapterTime
+                    book.syncTime = System.currentTimeMillis()
                     appDb.bookDao.update(book)
                 }
             }
