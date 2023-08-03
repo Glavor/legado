@@ -72,6 +72,7 @@ object AppWebDav {
                 WebDav(rootWebDavUrl, mAuthorization).makeAsDir()
                 WebDav(bookProgressUrl, mAuthorization).makeAsDir()
                 WebDav(exportsWebDavUrl, mAuthorization).makeAsDir()
+                WebDav(bgWebDavUrl, mAuthorization).makeAsDir()
                 val rootBooksUrl = "${rootWebDavUrl}books"
                 defaultBookWebDav = RemoteBookWebDav(rootBooksUrl, mAuthorization)
                 authorization = mAuthorization
@@ -159,7 +160,7 @@ object AppWebDav {
     /**
      * 获取云端所有背景名称
      */
-    suspend fun getAllBgNames(): Result<List<WebDavFile>> {
+    private suspend fun getAllBgWebDavFiles(): Result<List<WebDavFile>> {
         return kotlin.runCatching {
             if (!NetworkUtils.isAvailable())
                 throw NoStackTraceException("网络未连接")
@@ -170,6 +171,33 @@ object AppWebDav {
         }
     }
 
+    /**
+     * 上传背景图片
+     */
+    suspend fun upBgs(files: Array<File>) {
+        val authorization = authorization ?: return
+        if (!NetworkUtils.isAvailable()) return
+        val bgWebDavFiles = getAllBgWebDavFiles().getOrThrow()
+            .map { it.displayName }
+            .toSet()
+        files.forEach {
+            if (!bgWebDavFiles.contains(it.name)) {
+                WebDav("$bgWebDavUrl${it.name}", authorization)
+                    .upload(it)
+            }
+        }
+    }
+
+    /**
+     * 下载背景图片
+     */
+    suspend fun downBgs() {
+        val authorization = authorization ?: return
+        if (!NetworkUtils.isAvailable()) return
+        val bgWebDavFiles = getAllBgWebDavFiles().getOrThrow()
+            .map { it.displayName }
+            .toSet()
+    }
 
     suspend fun exportWebDav(byteArray: ByteArray, fileName: String) {
         if (!NetworkUtils.isAvailable()) return

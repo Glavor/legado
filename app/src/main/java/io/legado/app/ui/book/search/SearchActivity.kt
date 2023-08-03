@@ -269,7 +269,7 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
         viewModel.searchBookLiveData.observe(this) {
             adapter.setItems(it)
         }
-        lifecycleScope.launch(IO) {
+        lifecycleScope.launch {
             appDb.bookSourceDao.flowEnabledGroups().collect {
                 groups = it
             }
@@ -282,16 +282,14 @@ class SearchActivity : VMBaseActivity<ActivityBookSearchBinding, SearchViewModel
     private fun receiptIntent(intent: Intent? = null) {
         val searchScope = intent?.getStringExtra("searchScope")
         searchScope?.let {
-            viewModel.searchScope.update(searchScope)
+            viewModel.searchScope.update(searchScope, false)
         }
         val key = intent?.getStringExtra("key")
         if (key.isNullOrBlank()) {
             searchView.findViewById<TextView>(androidx.appcompat.R.id.search_src_text)
                 .requestFocus()
         } else {
-            searchView.post {
-                searchView.setQuery(key, true)
-            }
+            searchView.setQuery(key, true)
         }
     }
 
