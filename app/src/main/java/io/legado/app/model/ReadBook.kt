@@ -203,14 +203,13 @@ object ReadBook : CoroutineScope by MainScope() {
                 loadContent(durChapterIndex, upContent, resetPageOffset = false, pageChanged = true)
             } else if (upContent) {
                 AppLog.putDebug("moveToNextChapter-章节已加载,刷新视图")
-                callBack?.upContent {
-                    callBack?.upMenuView()
-                    AppLog.putDebug("moveToNextChapter-curPageChanged()")
-                    curPageChanged()
-                }
+                callBack?.upContent()
             }
             loadContent(durChapterIndex.plus(1), upContent, false)
             saveRead()
+            callBack?.upMenuView()
+            AppLog.putDebug("moveToNextChapter-curPageChanged()")
+            curPageChanged()
             return true
         } else {
             AppLog.putDebug("跳转下一章失败,没有下一章")
@@ -231,13 +230,12 @@ object ReadBook : CoroutineScope by MainScope() {
             if (curTextChapter == null) {
                 loadContent(durChapterIndex, upContent, resetPageOffset = false, pageChanged = true)
             } else if (upContent) {
-                callBack?.upContent {
-                    callBack?.upMenuView()
-                    curPageChanged()
-                }
+                callBack?.upContent()
             }
             loadContent(durChapterIndex.minus(1), upContent, false)
             saveRead()
+            callBack?.upMenuView()
+            curPageChanged()
             return true
         } else {
             return false
@@ -265,7 +263,12 @@ object ReadBook : CoroutineScope by MainScope() {
     private fun curPageChanged() {
         callBack?.pageChanged()
         if (BaseReadAloudService.isRun) {
-            readAloud(!BaseReadAloudService.pause)
+            val scrollPageAnim = pageAnim() == 3
+            if (scrollPageAnim) {
+                ReadAloud.pause(appCtx)
+            } else {
+                readAloud(!BaseReadAloudService.pause)
+            }
         }
         upReadTime()
         preDownload()
@@ -274,9 +277,9 @@ object ReadBook : CoroutineScope by MainScope() {
     /**
      * 朗读
      */
-    fun readAloud(play: Boolean = true) {
+    fun readAloud(play: Boolean = true, startPos: Int = 0) {
         book?.let {
-            ReadAloud.play(appCtx, play)
+            ReadAloud.play(appCtx, play, startPos = startPos)
         }
     }
 
