@@ -86,6 +86,7 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
 
     private fun initRecyclerView() {
         binding.rvBookshelf.setEdgeEffectColor(primaryColor)
+        binding.rvBookshelf.setFastScrollEnabled(AppConfig.showBookshelfFastScroller)
         binding.refreshLayout.setColorSchemeColors(accentColor)
         binding.refreshLayout.setOnRefreshListener {
             binding.refreshLayout.isRefreshing = false
@@ -156,6 +157,7 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
                 AppLog.put("书架更新出错", it)
             }.conflate().collect { list ->
                 binding.tvEmptyMsg.isGone = list.isNotEmpty()
+                binding.refreshLayout.isEnabled = list.isNotEmpty()
                 booksAdapter.setItems(list)
                 recoverPositionState()
                 delay(100)
@@ -274,6 +276,7 @@ class BooksFragment() : BaseFragment(R.layout.fragment_books),
         observeEvent<String>(EventBus.BOOKSHELF_REFRESH) {
             booksAdapter.notifyDataSetChanged()
             startLastUpdateTimeJob()
+            binding.rvBookshelf.setFastScrollEnabled(AppConfig.showBookshelfFastScroller)
         }
     }
 }
