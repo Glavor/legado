@@ -58,7 +58,7 @@ class RssFragment() : VMBaseFragment<RssViewModel>(R.layout.fragment_rss),
 
     private val binding by viewBinding(FragmentRssBinding::bind)
     override val viewModel by viewModels<RssViewModel>()
-    private val adapter by lazy { RssAdapter(requireContext(), this) }
+    private val adapter by lazy { RssAdapter(requireContext(), this, lifecycle) }
     private val searchView: SearchView by lazy {
         binding.titleBar.findViewById(R.id.search_view)
     }
@@ -143,7 +143,9 @@ class RssFragment() : VMBaseFragment<RssViewModel>(R.layout.fragment_rss),
     private fun initGroupData() {
         groupsFlowJob?.cancel()
         groupsFlowJob = lifecycleScope.launch {
-            appDb.rssSourceDao.flowGroupEnabled().conflate().collect {
+            appDb.rssSourceDao.flowGroupEnabled().catch {
+                AppLog.put("订阅界面获取分组数据失败\n${it.localizedMessage}", it)
+            }.flowOn(IO).conflate().collect {
                 groups.clear()
                 it.map { group ->
                     groups.addAll(group.splitNotBlank(AppPattern.splitGroupRegex))
