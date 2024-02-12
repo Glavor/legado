@@ -97,6 +97,7 @@ import io.legado.app.utils.LogUtils
 import io.legado.app.utils.StartActivityContract
 import io.legado.app.utils.SyncedRenderer
 import io.legado.app.utils.applyOpenTint
+import io.legado.app.utils.buildMainHandler
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.getPrefString
 import io.legado.app.utils.hexString
@@ -221,6 +222,8 @@ class ReadBookActivity : BaseReadBookActivity(),
     private var reloadContent = false
     private val autoPageRenderer by lazy { SyncedRenderer { doAutoPage(it) } }
     private var autoPageScrollOffset = 0.0
+    private val handler by lazy { buildMainHandler() }
+    private val screenOffRunnable by lazy { Runnable { keepScreenOn(false) } }
 
     //恢复跳转前进度对话框的交互结果
     private var confirmRestoreProcess: Boolean? = null
@@ -1582,6 +1585,9 @@ class ReadBookActivity : BaseReadBookActivity(),
         observeEvent<Boolean>(EventBus.UP_SEEK_BAR) {
             binding.readMenu.upSeekBar()
         }
+        observeEvent<String>(EventBus.RECREATE) {
+            binding.readView.invalidateTextPage()
+        }
     }
 
     private fun upScreenTimeOut() {
@@ -1594,17 +1600,16 @@ class ReadBookActivity : BaseReadBookActivity(),
      * 重置黑屏时间
      */
     override fun screenOffTimerStart() {
-        keepScreenJon?.cancel()
-        keepScreenJon = lifecycleScope.launch {
+        handler.post {
             if (screenTimeOut < 0) {
                 keepScreenOn(true)
-                return@launch
+                return@post
             }
             val t = screenTimeOut - sysScreenOffTime
             if (t > 0) {
                 keepScreenOn(true)
-                delay(screenTimeOut)
-                keepScreenOn(false)
+                handler.removeCallbacks(screenOffRunnable)
+                handler.postDelayed(screenOffRunnable, screenTimeOut)
             } else {
                 keepScreenOn(false)
             }
