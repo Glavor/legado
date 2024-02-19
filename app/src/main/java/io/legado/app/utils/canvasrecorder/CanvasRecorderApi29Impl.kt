@@ -5,6 +5,9 @@ import android.graphics.Picture
 import android.graphics.RenderNode
 import android.os.Build
 import androidx.annotation.RequiresApi
+import io.legado.app.utils.canvasrecorder.objectpool.synchronized
+import io.legado.app.utils.canvasrecorder.pools.PicturePool
+import io.legado.app.utils.canvasrecorder.pools.RenderNodePool
 
 @RequiresApi(Build.VERSION_CODES.Q)
 class CanvasRecorderApi29Impl : BaseCanvasRecorder() {
@@ -17,11 +20,17 @@ class CanvasRecorderApi29Impl : BaseCanvasRecorder() {
 
     private fun init() {
         if (renderNode == null) {
-            renderNode = RenderNode("CanvasRecorder")
+            renderNode = renderNodePool.obtain()
         }
         if (picture == null) {
-            picture = Picture()
+            picture = picturePool.obtain()
         }
+    }
+
+    private fun flushRenderNode() {
+        val rc = renderNode!!.beginRecording()
+        rc.drawPicture(picture!!)
+        renderNode!!.endRecording()
     }
 
     override fun beginRecording(width: Int, height: Int): Canvas {
@@ -32,9 +41,7 @@ class CanvasRecorderApi29Impl : BaseCanvasRecorder() {
 
     override fun endRecording() {
         picture!!.endRecording()
-        val rc = renderNode!!.beginRecording()
-        rc.drawPicture(picture!!)
-        renderNode!!.endRecording()
+        flushRenderNode()
         super.endRecording()
     }
 
@@ -42,9 +49,7 @@ class CanvasRecorderApi29Impl : BaseCanvasRecorder() {
         if (renderNode == null || picture == null) return
         if (canvas.isHardwareAccelerated) {
             if (!renderNode!!.hasDisplayList()) {
-                val rc = renderNode!!.beginRecording()
-                rc.drawPicture(picture!!)
-                renderNode!!.endRecording()
+                flushRenderNode()
             }
             canvas.drawRenderNode(renderNode!!)
         } else {
@@ -54,9 +59,16 @@ class CanvasRecorderApi29Impl : BaseCanvasRecorder() {
 
     override fun recycle() {
         super.recycle()
-        renderNode?.discardDisplayList()
+        if (renderNode == null || picture == null) return
+        renderNodePool.recycle(renderNode!!)
         renderNode = null
+        picturePool.recycle(picture!!)
         picture = null
+    }
+
+    companion object {
+        private val picturePool = PicturePool().synchronized()
+        private val renderNodePool = RenderNodePool().synchronized()
     }
 
 }
