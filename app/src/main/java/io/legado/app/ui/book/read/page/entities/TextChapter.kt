@@ -33,7 +33,7 @@ data class TextChapter(
     private val textPages = arrayListOf<TextPage>()
     val pages: List<TextPage> get() = textPages
 
-    var layout: TextChapterLayout? = null
+    private var layout: TextChapterLayout? = null
 
     fun getPage(index: Int): TextPage? {
         return pages.getOrNull(index)
@@ -222,8 +222,9 @@ data class TextChapter(
         }
         // 判断是否已经排版到 charIndex ，没有则返回 -1
         if (!isCompleted && index == size - 1) {
-            val line = pages[index].lines.first()
-            val pageEndPos = line.chapterPosition + line.charSize
+            val page = pages[index]
+            val line = page.lines.first()
+            val pageEndPos = line.chapterPosition + page.charSize
             if (charIndex > pageEndPos) {
                 return -1
             }
@@ -254,7 +255,9 @@ data class TextChapter(
     }
 
     fun createLayout(scope: CoroutineScope, book: Book, bookContent: BookContent) {
-        textPages.clear()
+        if (layout != null) {
+            throw IllegalStateException("已经排版过了")
+        }
         layout = TextChapterLayout(
             scope,
             this,
@@ -264,11 +267,11 @@ data class TextChapter(
         )
     }
 
-    fun setProgressListener(l: LayoutProgressListener) {
+    fun setProgressListener(l: LayoutProgressListener?) {
         if (isCompleted) {
-            l.onLayoutCompleted()
+            // no op
         } else if (layout?.exception != null) {
-            l.onLayoutException(layout?.exception!!)
+            l?.onLayoutException(layout?.exception!!)
         } else {
             listener = l
         }
@@ -285,12 +288,15 @@ data class TextChapter(
     }
 
     override fun onLayoutException(e: Throwable) {
+        isCompleted = true
         listener?.onLayoutException(e)
         listener = null
     }
 
     fun cancelLayout() {
         layout?.cancel()
+        isCompleted = true
+        listener = null
     }
 
     companion object {
