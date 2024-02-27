@@ -431,6 +431,7 @@ class TextChapterLayout(
 
             else -> y
         }
+        val (strList, widthList) = measureTextSplit(text, textPaint)
         for (lineIndex in 0 until layout.lineCount) {
             val textLine = TextLine(isTitle = isTitle)
             if (durY + textHeight > visibleHeight) {
@@ -461,12 +462,13 @@ class TextChapterLayout(
             val lineStart = layout.getLineStart(lineIndex)
             val lineEnd = layout.getLineEnd(lineIndex)
             val lineText = text.substring(lineStart, lineEnd)
-            val (words, widths) = measureTextSplit(lineText, textPaint)
+            val words = strList.subList(lineStart, lineEnd)
+            val widths = widthList.subList(lineStart, lineEnd)
             val desiredWidth = widths.fastSum()
+            textLine.text = lineText
             when {
                 lineIndex == 0 && layout.lineCount > 1 && !isTitle -> {
-                    //第一行 非标题
-                    textLine.text = lineText
+                    //多行的第一行 非标题
                     addCharsToLineFirst(
                         book, absStartX, textLine, words, textPaint,
                         desiredWidth, widths, srcList
@@ -474,8 +476,7 @@ class TextChapterLayout(
                 }
 
                 lineIndex == layout.lineCount - 1 -> {
-                    //最后一行
-                    textLine.text = lineText
+                    //最后一行、单行
                     //标题x轴居中
                     val startX = if (
                         isTitle &&
@@ -504,7 +505,6 @@ class TextChapterLayout(
                         )
                     } else {
                         //中间行
-                        textLine.text = lineText
                         addCharsToLineMiddle(
                             book, absStartX, textLine, words, textPaint,
                             desiredWidth, 0f, widths, srcList
